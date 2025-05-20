@@ -1,36 +1,33 @@
 export default function buildPrompt(skillsets, experience) {
-   return `
- Generate exactly 100 interview questions for a candidate with the following profile:
- 
- - Skillset: ${skillsets}
- - Experience: ${experience} years
- 
- Structure the questions in JSON format with the following schema:
- {
-   "total": 100,
-   "questions": [
-     {
-       "id": <number>,              // Sequential ID from 1 to 100
-       "question": "<string>",      // The question text
-       "category": "<string>",      // Category of the question (e.g., JavaScript, Node.js, Time Management)
-       "type": "<string>"           // One of: "Technical", "Scenario-Based", "Soft Skill"
-     },
-     ...
-   ]
- }
- 
- Distribution of questions:
- - 60 Technical Questions:
-   - Role-specific, core concepts, tools, and best practices from the given skillset
- - 25 Scenario-Based Questions:
-   - Focused on real-world problem-solving, decision-making, and troubleshooting
- - 15 Soft Skill Questions:
-   - 5 each on:
-     - Time Management
-     - Problem-Solving
-     - Communication
-     - Confidence
- 
- Ensure all 100 questions are diverse, non-repetitive, and relevant to the provided skillset and experience.
- `;
+  return `
+Generate exactly 6 diverse interview questions for a candidate with the following profile:
+
+- Skillset: ${skillsets}
+- Experience: ${experience} years
+- Tone: Formal and industry-ready.
+- Focus: Problem-solving, Communication, Confidence, and Time Management.
+
+Format the output in JSON with this schema:
+{
+  "total": 6,
+  "questions": [
+    {
+      "id": <number>,              // Sequential ID from 1 to 6
+      "question": "<string>",      // The question text
+      "category": "<string>",      // Category (e.g., JavaScript, Time Management)
+      "type": "<string>"           // One of: "Technical", "Scenario-Based", "Soft Skill"
+    }
+  ]
+}
+
+Distribution of questions:
+- 3 Technical Questions:
+  - Cover core concepts, tools, and best practices based on the skillset.
+- 2 Scenario-Based Questions:
+  - Real-world decision-making, troubleshooting, and practical challenges.
+- 1 Soft Skill Question:
+  - Choose one from: Time Management, Communication, or Confidence.
+
+Ensure all questions are relevant, non-repetitive, and appropriate for the candidate's experience level.
+`;
 }
