@@ -1,4 +1,4 @@
-import {convertTextToAudioCoqui , cleanElevenLabsInput } from '../services/ttsCoquiService.js';
+import { convertTextToAudioCoqui, cleanElevenLabsInput } from '../services/ttsCoquiService.js';
 import { transcribeAudio } from '../services/sttrevAiService.js';
 import { saveUserAnswer } from '../services/dbService.js';
 import { evaluateAnswer } from '../services/evaluationService.js';
@@ -57,36 +57,46 @@ export const processUserSpeech = async (req, res) => {
                 const audioBuffer = Buffer.from(audio, 'base64');
                 console.log(`Audio buffer size (bytes): ${audioBuffer.length}`);
 
-                // Use streaming or standard transcription based on request
+                // Use standard transcription (streaming not implemented yet)
                 try {
-                    if (useStreaming) {
-                        finalTranscript = await transcribeAudioStream(audioBuffer, finalMimeType);
-                        console.log(`Rev AI streaming transcript: ${finalTranscript}`);
-                    } else {
-                        finalTranscript = await transcribeAudio(audioBuffer, finalMimeType);
-                        console.log(`Rev AI transcript: ${finalTranscript}`);
-                    }
+                    finalTranscript = await transcribeAudio(audioBuffer, finalMimeType);
+                    console.log(`Rev AI transcript: ${finalTranscript}`);
                 } catch (revAiError) {
                     console.error('Rev AI transcription error:', revAiError);
-                    console.log('Falling back to Deepgram transcription service...');
-
-                    // Try Deepgram as fallback
-                    try {
-                        finalTranscript = await deepgramTranscribe(audioBuffer, finalMimeType);
-                        console.log(`Deepgram fallback transcript: ${finalTranscript}`);
-                    } catch (deepgramError) {
-                        console.error('Deepgram fallback error:', deepgramError);
-                        throw new Error('All transcription services failed');
-                    }
+                    throw new Error('Transcription service failed');
                 }
             } catch (transcriptionError) {
                 console.error('Transcription error:', transcriptionError);
-                finalTranscript = "I couldn't transcribe the audio. Please try again with clearer audio or type your answer manually.";
+                // Return error response immediately without saving to database
+                return res.status(200).json({
+                    transcript: "I couldn't transcribe the audio. Please try again with clearer audio.",
+                    evaluation: {
+                        isCorrect: false,
+                        score: 0,
+                        feedback: "Audio transcription failed. Please try recording again with clearer audio or type your answer manually."
+                    },
+                    transcriptionFailed: true // Flag to indicate transcription failure
+                });
             }
         } else {
             return res.status(400).json({ error: 'Either audio data or transcript is required' });
         }
 
+        // Check if transcription returned an error message instead of actual transcript
+        if (finalTranscript.includes("I couldn't transcribe the audio")) {
+            console.log('Transcription service returned error message - not saving to database');
+            return res.status(200).json({
+                transcript: finalTranscript,
+                evaluation: {
+                    isCorrect: false,
+                    score: 0,
+                    feedback: "Audio transcription failed. Please try recording again with clearer audio or type your answer manually."
+                },
+                transcriptionFailed: true // Flag to indicate transcription failure
+            });
+        }
+
+        // Only proceed with evaluation and database saving for successful transcriptions
         let evaluation;
         try {
             evaluation = await evaluateAnswer(questionId, finalTranscript);
@@ -100,6 +110,7 @@ export const processUserSpeech = async (req, res) => {
             };
         }
 
+        // Save to database only for successful transcriptions
         try {
             await saveUserAnswer(
                 questionId,
@@ -109,9 +120,14 @@ export const processUserSpeech = async (req, res) => {
                 evaluation.score,
                 evaluation.feedback
             );
-            console.log(`Answer saved successfully`);
+            console.log(`Answer saved successfully for successful transcription`);
         } catch (dbError) {
             console.error('Database error while saving answer:', dbError);
+            return res.status(500).json({
+                error: 'Failed to save answer to database',
+                transcript: finalTranscript,
+                evaluation
+            });
         }
 
         res.status(200).json({
@@ -131,3 +147,6 @@ export const processUserSpeech = async (req, res) => {
         });
     }
 };
+
+
+// 
